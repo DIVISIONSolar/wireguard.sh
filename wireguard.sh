@@ -510,6 +510,20 @@ WantedBy=multi-user.target" >> /etc/systemd/system/wg-iptables.service
 	new_client_setup
 	# Enable and start the wg-quick service
 	systemctl enable --now wg-quick@wg0.service
+
+	# Configure iptables rules to allow WireGuard client connectivity
+	echo "Configuring iptables for WireGuard client connectivity..."
+	iptables -A FORWARD -i wg0 -j ACCEPT
+	iptables -t nat -A POSTROUTING -o $(ip -o -4 route show to default | awk '{print $5}') -j MASQUERADE
+
+	# Install iptables-persistent to make rules persistent
+	echo "Installing iptables-persistent to make iptables rules persistent across reboots..."
+	apt-get install -y iptables-persistent
+
+	# Save iptables rules to be loaded on system boot
+	echo "Saving iptables rules to be persistent..."
+	netfilter-persistent save
+
 	# Set up automatic updates for BoringTun if the user wanted to
 	if [[ "$boringtun_updates" =~ ^[yY]*$ ]]; then
 		# Deploy upgrade script
